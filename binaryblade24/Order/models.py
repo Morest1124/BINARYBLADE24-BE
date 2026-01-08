@@ -83,24 +83,108 @@ class Order(models.Model):
         self.save()
         return total
     
-    def create_escrow(self):
-        """Create escrow record when payment is made"""
-        from .models import Escrow
-        if not hasattr(self, 'escrow'):
-            Escrow.objects.create(
-                order=self,
-                amount=self.total_amount
+    def create_escrow_transaction(self):
+        """Create escrow transaction via Escrow API when order is paid"""
+        from escrow.models import EscrowTransaction
+        from escrow.escrow_client import EscrowClient, EscrowAPIException
+        from decimal import Decimal
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Check if escrow transaction already exists
+        if hasattr(self, 'escrow_transaction'):
+            logger.warning(f"Escrow transaction already exists for order {self.order_number}")
+            return self.escrow_transaction
+        
+        # Get freelancer from first order item
+        first_item = self.items.select_related('freelancer', 'project').first()
+        if not first_item:
+            logger.error(f"Cannot create escrow for order {self.order_number}: No items found")
+            return None
+        
+        try:
+            # Initialize Escrow API client
+            escrow_client = EscrowClient()
+            
+            # Create escrow transaction via API
+            api_response = escrow_client.create_transaction(
+                order_id=self.order_number,
+                client_email=self.client.email,
+                freelancer_email=first_item.freelancer.email,
+                total_amount=self.total_amount,
+                project_title=first_item.project.title,
+                currency='USD'
             )
+            
+            # Calculate fees
+            fees = escrow_client.calculate_fees(self.total_amount)
+            
+            # Create local escrow transaction record
+            escrow_transaction = EscrowTransaction.objects.create(
+                order=self,
+                client=self.client,
+                freelancer=first_item.freelancer,
+                escrow_id=api_response['id'],
+                total_amount=self.total_amount,
+                platform_fee=fees['platform_fee'],
+                freelancer_amount=fees['freelancer_amount'],
+                currency='USD',
+                status=EscrowTransaction.TransactionStatus.PENDING,
+                escrow_response=api_response
+            )
+            
+            logger.info(f"Escrow transaction created: {escrow_transaction.escrow_id} for order {self.order_number}")
+            return escrow_transaction
+            
+        except EscrowAPIException as e:
+            logger.error(f"Failed to create escrow for order {self.order_number}: {e}")
+            return None
+        except Exception as e:
+            logger.exception(f"Unexpected error creating escrow for order {self.order_number}: {e}")
+            return None
+    
+    def create_escrow(self):
+        """Legacy method - redirects to new escrow API integration"""
+        return self.create_escrow_transaction()
     
     def approve_and_release_payment(self):
         """Client approves work and releases payment from escrow"""
-        if self.status == self.OrderStatus.PAID and hasattr(self, 'escrow'):
-            # Release escrow funds
-            if self.escrow.release_to_freelancer():
-                # Update order status
-                self.status = self.OrderStatus.COMPLETED
-                self.save()
-                return True
+        # Use new escrow transaction system if available
+        if hasattr(self, 'escrow_transaction'):
+            from escrow.escrow_client import EscrowClient, EscrowAPIException
+            import logging
+            
+            logger = logging.getLogger(__name__)
+            
+            if self.escrow_transaction.is_active:
+                try:
+                    # Call Escrow API to accept/release funds
+                    escrow_client = EscrowClient()
+                    escrow_client.accept_transaction(self.escrow_transaction.escrow_id)
+                    
+                    # Update local status
+                    self.escrow_transaction.mark_as_disbursed()
+                    
+                    # Update order status
+                    self.status = self.OrderStatus.COMPLETED
+                    self.save()
+                    
+                    logger.info(f"Payment released for order {self.order_number}")
+                    return True
+                    
+                except EscrowAPIException as e:
+                    logger.error(f"Failed to release payment for order {self.order_number}: {e}")
+                    return False
+        
+        # Fallback to legacy escrow system
+        elif hasattr(self, 'escrow'):
+            if self.status == self.OrderStatus.PAID:
+                if self.escrow.release_to_freelancer():
+                    self.status = self.OrderStatus.COMPLETED
+                    self.save()
+                    return True
+        
         return False
 
     def cancel_order(self, user):

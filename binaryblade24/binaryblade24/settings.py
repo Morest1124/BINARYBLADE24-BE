@@ -5,6 +5,7 @@ Django settings for binaryblade24 project.
 from pathlib import Path
 import os
 from datetime import timedelta
+from decimal import Decimal
 from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
 # Using decouple for environment variable management for consistency and safety
@@ -270,6 +271,24 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# ====================================================================
+# ESCROW API CONFIGURATION
+# ====================================================================
+
+# Escrow.com API Settings
+ESCROW_API_URL = config(
+    'ESCROW_API_URL',
+    default='https://api.escrow-sandbox.com/2017-09-01'
+)
+ESCROW_API_EMAIL = config('ESCROW_API_EMAIL', default='')
+ESCROW_API_KEY = config('ESCROW_API_KEY', default='')
+ESCROW_WEBHOOK_SECRET = config('ESCROW_WEBHOOK_SECRET', default='')
+
+# Platform Fee Configuration (Three-Way Payment Split)
+# Platform takes 20%, Freelancer receives 80%
+PLATFORM_FEE_PERCENTAGE = Decimal(config('PLATFORM_FEE_PERCENTAGE', default='0.20'))
+FREELANCER_PAYOUT_PERCENTAGE = Decimal(config('FREELANCER_PAYOUT_PERCENTAGE', default='0.80'))
 
 # ====================================================================
 # END OF SETTINGS
