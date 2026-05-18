@@ -68,13 +68,39 @@ class Order(models.Model):
         return f"Order {self.order_number} - {self.client.username}"
     
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_status = None
+        
+        if not is_new:
+            try:
+                old_instance = Order.objects.get(pk=self.pk)
+                old_status = old_instance.status
+            except Order.DoesNotExist:
+                pass
+
         if not self.order_number:
             # Generate unique order number: ORD-YYYYMMDD-UUID
             from datetime import datetime
             date_str = datetime.now().strftime('%Y%m%d')
             unique_id = str(uuid.uuid4())[:8].upper()
             self.order_number = f"ORD-{date_str}-{unique_id}"
+            
         super().save(*args, **kwargs)
+        
+        # Broadcast status changes
+        if not is_new and old_status != self.status:
+            try:
+                from notifications.websocket_utils import broadcast_order_update
+                # Broadcast to both client and freelancer(s)
+                broadcast_order_update(self.client.id, self)
+                
+                for item in self.items.all():
+                    if item.freelancer:
+                        broadcast_order_update(item.freelancer.id, self)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to broadcast order update: {e}")
     
     def calculate_total(self):
         """Calculate total from all order items"""

@@ -45,6 +45,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='binaryblade2411.pythonanywhere.
 # ====================================================================
 
 INSTALLED_APPS = [
+    'daphne',  # ASGI server - must be first
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -58,7 +59,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders', 
-    'rest_framework_api_key', 
+    'rest_framework_api_key',
+    'channels',  # WebSocket support 
     
     # Your apps
     'User',
@@ -289,6 +291,26 @@ ESCROW_WEBHOOK_SECRET = config('ESCROW_WEBHOOK_SECRET', default='')
 # Platform takes 20%, Freelancer receives 80%
 PLATFORM_FEE_PERCENTAGE = Decimal(config('PLATFORM_FEE_PERCENTAGE', default='0.20'))
 FREELANCER_PAYOUT_PERCENTAGE = Decimal(config('FREELANCER_PAYOUT_PERCENTAGE', default='0.80'))
+
+# ====================================================================
+# WEBSOCKET CONFIGURATION (Django Channels)
+# ====================================================================
+
+# ASGI Application
+ASGI_APPLICATION = 'binaryblade24.asgi.application'
+
+# Channel Layers - for WebSocket communication
+CHANNEL_LAYERS = {
+    'default': {
+        # Use in-memory for development (no Redis required)
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        # For production with Redis:
+        # 'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        # 'CONFIG': {
+        #     'hosts': [('127.0.0.1', 6379)],
+        # },
+    },
+}
 
 # ====================================================================
 # END OF SETTINGS

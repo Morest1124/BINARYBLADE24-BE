@@ -130,6 +130,19 @@ class EscrowTransaction(models.Model):
             self.freelancer_amount = (self.total_amount * freelancer_percentage).quantize(Decimal('0.01'))
         
         super().save(*args, **kwargs)
+
+        # Broadcast update
+        try:
+            from notifications.websocket_utils import broadcast_escrow_update
+            # Notify both parties
+            if self.client:
+                broadcast_escrow_update(self.client.id, self)
+            if self.freelancer:
+                broadcast_escrow_update(self.freelancer.id, self)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to broadcast escrow update: {e}")
     
     def mark_as_funded(self):
         """Mark transaction as funded when payment is received"""

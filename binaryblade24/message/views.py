@@ -93,6 +93,20 @@ class MessageViewSet(viewsets.ModelViewSet):
         # Send email notification
         from notifications.email_service import EmailService
         EmailService.send_new_message_email(message)
+        
+        # Broadcast via WebSocket
+        try:
+            from notifications.websocket_utils import broadcast_message_received
+            
+            # Determine recipient (the other participant)
+            recipient = message.conversation.get_other_participant(message.sender)
+            if recipient:
+                broadcast_message_received(recipient.id, message)
+        except Exception as e:
+            # Don't fail the request if WebSocket fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"WebSocket broadcast failed: {e}")
     
     def create(self, request, *args, **kwargs):
         """Override create to mark message as read and update conversation timestamp"""

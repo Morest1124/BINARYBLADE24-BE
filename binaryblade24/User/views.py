@@ -533,6 +533,8 @@ class GlobalSearchView(APIView):
         max_price = request.query_params.get('max_price')
         rating = request.query_params.get('rating')
         search_type = request.query_params.get('type', 'all') # 'all', 'freelancers', 'projects'
+        sort_by = request.query_params.get('sort_by', 'newest')  # 'newest','oldest','price_asc','price_desc','rating'
+        has_milestones = request.query_params.get('has_milestones')  # 'true' / 'false'
 
         results = {}
 
@@ -564,6 +566,18 @@ class GlobalSearchView(APIView):
                     Q(created_projects__category_id=category_id) |
                     Q(created_projects__category__parent_id=category_id)
                 ).distinct()
+
+            # Sorting for freelancers
+            if sort_by == 'price_asc':
+                users = users.order_by('profile__hourly_rate')
+            elif sort_by == 'price_desc':
+                users = users.order_by('-profile__hourly_rate')
+            elif sort_by == 'rating':
+                users = users.order_by('-profile__rating')
+            elif sort_by == 'oldest':
+                users = users.order_by('date_joined')
+            else:  # newest (default)
+                users = users.order_by('-date_joined')
             
             user_limit = 20 if search_type == 'all' else 50
             results['freelancers'] = UserSerializer(users[:user_limit], many=True).data
@@ -597,9 +611,25 @@ class GlobalSearchView(APIView):
                     Q(category_id=category_id) | 
                     Q(category__parent_id=category_id)
                 )
+            if has_milestones == 'true':
+                projects = projects.filter(has_milestones=True)
+            elif has_milestones == 'false':
+                projects = projects.filter(has_milestones=False)
+
+            # Sorting for projects
+            if sort_by == 'price_asc':
+                projects = projects.order_by('budget')
+            elif sort_by == 'price_desc':
+                projects = projects.order_by('-budget')
+            elif sort_by == 'oldest':
+                projects = projects.order_by('created_at')
+            elif sort_by == 'rating':
+                projects = projects.order_by('-average_rating') if hasattr(Project, 'average_rating') else projects.order_by('-created_at')
+            else:  # newest (default)
+                projects = projects.order_by('-created_at')
                 
             project_limit = 20 if search_type == 'all' else 50
-            results['projects'] = ProjectSerializer(projects[:project_limit], many=True).data
+            results['projects'] = ProjectSerializer(projects[:project_limit], many=True, context={'request': request}).data
 
         # ---------------------------------------------------------
         # 3. SEARCH CATEGORIES (only if query present and type is 'all')
@@ -611,6 +641,7 @@ class GlobalSearchView(APIView):
              results['categories'] = []
 
         return Response(results)
+
 
 class UserSuggestionView(APIView):
     """

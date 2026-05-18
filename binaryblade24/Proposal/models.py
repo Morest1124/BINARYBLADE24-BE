@@ -5,10 +5,10 @@ from django.conf import settings
 
 class Proposal(models.Model):
     # Core Fields
-    title = models.CharField(max_length=200, default="Proposal")  # New field for proposal title
+    title = models.CharField(max_length=200, default="Proposal") 
     thumbnail = models.ImageField(upload_to='proposal_thumbnails/', blank=True, null=True)
     bid_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    cover_letter = models.TextField() # CORRECTED: Changed to snake_case
+    cover_letter = models.TextField()
     
 
     
@@ -19,13 +19,13 @@ class Proposal(models.Model):
     )
     freelancer = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
-        on_delete=models.CASCADE, # CORRECTED: models.CASCADE
+        on_delete=models.CASCADE, 
         related_name='submitted_proposals' # Naming the reverse relationship 
     )
     
     # Proposal Status Choices
     class ProposalStatus(models.TextChoices):
-        PENDING = 'PENDING', 'Pending' # Optional: Cleaner display name
+        PENDING = 'PENDING', 'Pending' 
         REJECTED = 'REJECTED', 'Rejected'
         ACCEPTED = 'ACCEPTED', 'Accepted'
         

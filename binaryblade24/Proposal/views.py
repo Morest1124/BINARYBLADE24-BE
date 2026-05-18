@@ -191,6 +191,16 @@ class ProposalListCreateView(mixins.CreateModelMixin, mixins.ListModelMixin, vie
             status=Proposal.ProposalStatus.PENDING,
             bid_amount=project.budget  # Fixed-price: freelancer must accept client's budget
         )
+
+        # Broadcast proposal to client
+        try:
+            from notifications.websocket_utils import broadcast_proposal_received
+            proposal = serializer.instance
+            broadcast_proposal_received(project.client.id, proposal)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to broadcast proposal: {e}")
     
     @action(detail=True, methods=['patch'], url_path='status', 
             permission_classes=[IsAuthenticated, IsClient, IsProposalProjectOwner])
@@ -334,6 +344,15 @@ class ProposalListCreateView(mixins.CreateModelMixin, mixins.ListModelMixin, vie
                 # Send email notification
                 from notifications.email_service import EmailService
                 EmailService.send_proposal_accepted_email(proposal)
+
+            # Broadcast status update to freelancer
+            try:
+                from notifications.websocket_utils import broadcast_proposal_status_update
+                broadcast_proposal_status_update(proposal.freelancer.id, proposal)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to broadcast proposal update: {e}")
         
         # Return the updated proposal data
         return Response(ProposalSerializer(proposal, context={'request': request}).data)

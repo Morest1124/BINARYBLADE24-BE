@@ -34,21 +34,56 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         """
-        Custom action to simulate payment (for now).
-        In production, this would be a webhook from Stripe/PayPal.
+        Mark order as paid and create escrow transaction.
+        This triggers the escrow creation and sets order to IN_PROGRESS.
+        In production, this would be called by payment gateway webhook.
         """
         order = self.get_object()
-        if order.status == Order.OrderStatus.PENDING:
-            order.status = Order.OrderStatus.PAID
-            from django.utils import timezone
-            order.paid_at = timezone.now()
+        
+        if order.status != Order.OrderStatus.PENDING:
+            return Response(
+                {'error': f'Order is not pending (current status: {order.status})'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Mark order as paid
+        order.paid_at = timezone.now()
+        order.save()
+        
+        # Create escrow transaction to hold funds
+        escrow_transaction = order.create_escrow_transaction()
+        
+        if escrow_transaction:
+            # Set order to IN_PROGRESS now that escrow is created
+            order.status = Order.OrderStatus.IN_PROGRESS
             order.save()
             
-            # Create escrow to hold funds
-            order.create_escrow()
+            logger.info(f"Order {order.order_number} paid and moved to IN_PROGRESS with escrow {escrow_transaction.escrow_id}")
             
-            return Response({'status': 'Order marked as paid', 'escrow_created': True})
-        return Response({'error': 'Order is not pending'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'status': 'Payment processed and escrow created',
+                'order_id': order.id,
+                'order_number': order.order_number,
+                'order_status': order.status,
+                'escrow_created': True,
+                'escrow_id': escrow_transaction.escrow_id,
+                'escrow_status': escrow_transaction.status,
+                'total_amount': float(order.total_amount),
+                'platform_fee': float(escrow_transaction.platform_fee),
+                'freelancer_amount': float(escrow_transaction.freelancer_amount),
+                'currency': escrow_transaction.currency,
+                'payment_url': escrow_transaction.escrow_response.get('payment_url') if escrow_transaction.escrow_response else None
+            })
+        else:
+            # Escrow creation failed
+            logger.error(f"Escrow creation failed for order {order.order_number}")
+            return Response(
+                {
+                    'error': 'Payment received but escrow creation failed. Please contact support.',
+                    'order_status': order.status
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['post'])
     def release_payment(self, request, pk=None):
