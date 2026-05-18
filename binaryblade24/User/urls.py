@@ -13,6 +13,7 @@ from .views import (
     UserSuggestionView,
     GlobalSearchView,
     SearchFilterOptionsView,
+    PublicUserProfileView,
 )
 from .settings_views import (
     CountriesListView,
@@ -46,6 +47,7 @@ urlpatterns = [
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('users/<int:pk>/profile/', UserProfileView.as_view(), name='user-profile'),
+    path('users/<int:pk>/public/', PublicUserProfileView.as_view(), name='user-public-profile'),
     path('users/<int:pk>/proposals/', UserProposalsView.as_view(), name='user-proposals'),
     path('users/<int:pk>/reviews/', UserReviewsView.as_view(), name='user-reviews'),
     

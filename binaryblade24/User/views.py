@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
-from .Serializers import UserSerializer, ProfileSerializer
+from .Serializers import UserSerializer, ProfileSerializer, PublicUserProfileSerializer
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -696,3 +696,18 @@ class UserSuggestionView(APIView):
             if len(found_skills) >= 2: break
 
         return Response(suggestions)
+
+
+class PublicUserProfileView(APIView):
+    """
+    Public endpoint — no authentication required.
+    Returns safe public profile info for any user.
+    For freelancers includes: completed projects, active projects, portfolio.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk, format=None):
+        user = get_object_or_404(User, pk=pk)
+        serializer = PublicUserProfileSerializer(user, context={'request': request})
+        return Response(serializer.data)

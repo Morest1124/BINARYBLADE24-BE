@@ -225,3 +225,140 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPreferences
         fields = ['language', 'timezone', 'preferred_currency', 'dark_mode', 'default_view']
+
+
+class PublicUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Safe public profile serializer — no sensitive data.
+    Used for the public /users/<pk>/public/ endpoint (AllowAny).
+    For freelancers, shows GIG projects they created, active projects, and portfolio thumbnails.
+    """
+    bio = serializers.SerializerMethodField()
+    skills = serializers.SerializerMethodField()
+    hourly_rate = serializers.SerializerMethodField()
+    level = serializers.SerializerMethodField()
+    availability = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+    completed_projects = serializers.SerializerMethodField()
+    active_projects = serializers.SerializerMethodField()
+    active_projects_count = serializers.SerializerMethodField()
+    portfolio = serializers.SerializerMethodField()
+    total_projects_created = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'date_joined',
+            'country_origin', 'profile_picture',
+            'bio', 'skills', 'hourly_rate', 'level', 'availability', 'avg_rating',
+            'roles',
+            'completed_projects', 'active_projects', 'active_projects_count',
+            'portfolio', 'total_projects_created',
+        ]
+
+    def _get_profile(self, obj):
+        try:
+            return obj.profile
+        except Exception:
+            return None
+
+    def get_profile_picture(self, obj):
+        request = self.context.get('request')
+        if obj.profile_picture:
+            url = obj.profile_picture.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return None
+
+    def get_bio(self, obj):
+        p = self._get_profile(obj)
+        return p.bio if p else None
+
+    def get_skills(self, obj):
+        p = self._get_profile(obj)
+        return p.skills if p else None
+
+    def get_hourly_rate(self, obj):
+        p = self._get_profile(obj)
+        return str(p.hourly_rate) if p and p.hourly_rate else None
+
+    def get_level(self, obj):
+        p = self._get_profile(obj)
+        return p.level if p else None
+
+    def get_availability(self, obj):
+        p = self._get_profile(obj)
+        return p.availability if p else None
+
+    def get_avg_rating(self, obj):
+        from Review.models import Review
+        from django.db.models import Avg
+        agg = Review.objects.filter(reviewee=obj).aggregate(avg=Avg('rating'))
+        avg = agg.get('avg')
+        if avg is not None:
+            return round(avg, 1)
+        p = self._get_profile(obj)
+        return float(p.rating) if p and p.rating else 0.0
+
+    def get_roles(self, obj):
+        return list(obj.roles.values_list('name', flat=True))
+
+    def _is_freelancer(self, obj):
+        return obj.roles.filter(name__iexact='freelancer').exists()
+
+    def get_completed_projects(self, obj):
+        """Projects created by this user (as GIGs) that are COMPLETED."""
+        from Project.models import Project
+        request = self.context.get('request')
+        qs = Project.objects.filter(
+            client=obj,
+            status=Project.ProjectStatus.COMPLETED
+        ).order_by('-updated_at')[:12]
+        result = []
+        for p in qs:
+            thumb = None
+            if p.thumbnail:
+                url = p.thumbnail.url
+                thumb = request.build_absolute_uri(url) if request else url
+            result.append({
+                'id': p.id,
+                'title': p.title,
+                'thumbnail': thumb,
+                'project_type': p.project_type,
+            })
+        return result
+
+    def get_active_projects(self, obj):
+        """Projects created by this user that are IN_PROGRESS."""
+        from Project.models import Project
+        qs = Project.objects.filter(
+            client=obj,
+            status=Project.ProjectStatus.IN_PROGRESS
+        ).order_by('-updated_at')[:6]
+        return [{'id': p.id, 'title': p.title, 'project_type': p.project_type} for p in qs]
+
+    def get_active_projects_count(self, obj):
+        from Project.models import Project
+        return Project.objects.filter(client=obj, status=Project.ProjectStatus.IN_PROGRESS).count()
+
+    def get_portfolio(self, obj):
+        """Thumbnails from completed projects created by this user."""
+        from Project.models import Project
+        request = self.context.get('request')
+        qs = Project.objects.filter(
+            client=obj,
+            status=Project.ProjectStatus.COMPLETED
+        ).exclude(thumbnail='').exclude(thumbnail=None).order_by('-updated_at')[:12]
+        result = []
+        for p in qs:
+            if p.thumbnail:
+                url = p.thumbnail.url
+                result.append(request.build_absolute_uri(url) if request else url)
+        return result
+
+    def get_total_projects_created(self, obj):
+        from Project.models import Project
+        return Project.objects.filter(client=obj).count()
