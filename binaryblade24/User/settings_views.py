@@ -89,10 +89,15 @@ class UserAccountView(APIView):
         return Response(user_data)
 
     def put(self, request):
-        # Extract profile data (address) from request
-        address = request.data.pop('address', None)
+        # request.data might be an immutable QueryDict if multipart/form-data
+        data = request.data.copy() if hasattr(request.data, 'copy') else request.data
+        address = data.pop('address', None)
         
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        # If it's a list (from QueryDict.pop), get the first item
+        if isinstance(address, list) and len(address) > 0:
+            address = address[0]
+
+        serializer = UserSerializer(request.user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             

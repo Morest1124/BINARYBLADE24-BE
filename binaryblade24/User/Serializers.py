@@ -124,13 +124,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, min_length=8)
+    password = serializers.CharField(write_only=True, required=False, min_length=8)
     profile = ProfileSerializer(required=False)
     roles = CaseInsensitiveSlugRelatedField(
         many=True,
         slug_field='name',
         queryset=Role.objects.all(),
-        required=True
+        required=False
     )
 
     class Meta:
