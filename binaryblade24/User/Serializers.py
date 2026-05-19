@@ -136,8 +136,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'password', 'profile', 'identity_number', 'profile_picture', 'roles', 'date_joined', 'last_login', 'country_origin', 'phone_number', 'phone_country_code')
-        read_only_fields = ('id', 'date_joined', 'last_login')
+        fields = ('id', 'username', 'first_name', 'last_name', 'email', 'password', 'profile', 'identity_number', 'profile_picture', 'roles', 'date_joined', 'last_login', 'country_origin', 'phone_number', 'phone_country_code', 'is_email_verified')
+        read_only_fields = ('id', 'date_joined', 'last_login', 'is_email_verified')
 
 
 

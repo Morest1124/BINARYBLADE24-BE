@@ -38,6 +38,11 @@ from .file_views import (
     FileDeleteView,
     FileDownloadView,
 )
+from .verification_views import (
+    SendOTPView,
+    VerifyOTPView,
+    VerificationStatusView,
+)
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -84,4 +89,9 @@ urlpatterns = [
     path('files/', FileListView.as_view(), name='file-list'),
     path('files/<int:pk>/delete/', FileDeleteView.as_view(), name='file-delete'),
     path('files/<int:pk>/download/', FileDownloadView.as_view(), name='file-download'),
+    
+    # Verification endpoints
+    path('send-otp/', SendOTPView.as_view(), name='send-otp'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
+    path('verification-status/', VerificationStatusView.as_view(), name='verification-status'),
 ]

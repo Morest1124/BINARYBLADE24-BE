@@ -48,6 +48,10 @@ class User(AbstractUser):
     # NOTE: profilePicture renamed to profile_picture (snake_case convention)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
 
+    # Verification status
+    is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
+
     # Use 'email' for login:
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name', 'country_origin', 'phone_number', 'identity_number'] 
@@ -89,12 +93,40 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
+class OTPCode(models.Model):
+    """Stores short-lived OTP codes for email/phone verification."""
+    OTP_TYPE_EMAIL = 'email'
+    OTP_TYPE_SMS = 'sms'
+    OTP_TYPE_CHOICES = [
+        (OTP_TYPE_EMAIL, 'Email'),
+        (OTP_TYPE_SMS, 'SMS'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='otp_codes'
+    )
+    code = models.CharField(max_length=6)
+    otp_type = models.CharField(max_length=10, choices=OTP_TYPE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+
+    def is_valid(self):
+        from django.utils import timezone
+        return not self.is_used and self.expires_at > timezone.now()
+
+    def __str__(self):
+        return f"OTP({self.otp_type}) for {self.user.username} - {'used' if self.is_used else 'active'}"
+
 
 class Profile(models.Model):
-    
+
     # One-to-One link to User model
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, 
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, 
         related_name='profile'
     )

@@ -3,7 +3,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
 from urllib.parse import parse_qs
 import jwt
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -42,11 +45,11 @@ class JwtAuthMiddleware:
                 
                 if user_id:
                     scope['user'] = await get_user(user_id)
-            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
                 # Token invalid or expired
-                pass
+                logger.error(f"JWT Decode Error (Expired/Invalid): {e}")
             except Exception as e:
                 # Other errors
-                pass
+                logger.error(f"JWT Decode Error (Other): {type(e).__name__}: {e}")
         
         return await self.app(scope, receive, send)
