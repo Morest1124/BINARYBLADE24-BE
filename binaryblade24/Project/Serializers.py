@@ -131,9 +131,15 @@ class ProjectNestedSerializer(serializers.ModelSerializer):
     """
     Minimal serializer to show the associated project title for Proposal output.
     """
+    client_details = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Project
-        fields = ['id', 'title', 'budget']
+        fields = ['id', 'title', 'budget', 'client_details']
+
+    def get_client_details(self, obj):
+        from User.Serializers import FreelancerDetailSerializer
+        return FreelancerDetailSerializer(obj.client).data
 
 
 

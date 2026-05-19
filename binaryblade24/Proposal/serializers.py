@@ -25,38 +25,36 @@ User = get_user_model()
 class FreelancerDetailSerializer(serializers.ModelSerializer):
     """
     Minimal serializer for freelancer public profile information.
-    
-    This serializer exposes only basic, non-sensitive freelancer details
-    that are safe to display to any authenticated user.
-    
-    Fields:
-        id (int): Unique user identifier
-        username (str): Public username
-        first_name (str): Freelancer's first name
-        last_name (str): Freelancer's last name
-    
-    Note: Email and phone are intentionally excluded to enforce platform-only communication.
     """
+    avg_rating = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'profile_picture']
+        fields = ['id', 'username', 'first_name', 'last_name', 'profile_picture', 'avg_rating']
+
+    def get_avg_rating(self, obj):
+        from django.db.models import Avg
+        from Review.models import Review
+        try:
+            agg = Review.objects.filter(reviewee=obj).aggregate(avg=Avg('rating'))
+            return round(agg.get('avg') or 0.0, 1)
+        except Exception:
+            return 0.0
 
 
 class ProjectNestedSerializer(serializers.ModelSerializer):
     """
     Lightweight serializer for embedding project information in proposals.
-    
-    Provides essential project context when viewing a proposal without
-    requiring a separate API call to fetch full project details.
-    
-    Fields:
-        id (int): Project unique identifier
-        title (str): Project title/name
-        budget (Decimal): Client's set budget for the project
     """
+    client_details = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Project
-        fields = ['id', 'title', 'budget', 'description']
+        fields = ['id', 'title', 'budget', 'description', 'client_details']
+
+    def get_client_details(self, obj):
+        # Use the local serializer defined at the top of this file
+        return FreelancerDetailSerializer(obj.client).data
 
 
 class ProposalSerializer(serializers.ModelSerializer):
@@ -107,35 +105,10 @@ class ProposalSerializer(serializers.ModelSerializer):
         """
         Return freelancer public profile information.
         
-        Returns basic freelancer details (name, username) without exposing
-        contact information. This enforces the platform's policy that all
-        communication must happen through the internal messaging system.
-        
-        Args:
-            obj (Proposal): The proposal instance being serialized
-            
-        Returns:
-            dict: Serialized freelancer data (public profile only)
-            
-        Response Format:
-            {
-                "id": 123,
-                "username": "john_dev",
-                "first_name": "John",
-                "last_name": "Doe"
-            }
-        
-        Security & Business Rules:
-            - Email and phone numbers are NEVER exposed via API
-            - All communication must happen through platform messaging
-            - This prevents circumventing platform fees/monitoring
-            - Protects user privacy and platform revenue
+        Returns basic freelancer details (name, username, profile_picture, avg_rating)
+        without exposing contact information.
         """
-        # Import here to avoid circular dependency
-        from User.Serializers import FreelancerDetailSerializer
-        
-        # Always return minimal public information
-        # Email/phone never exposed to enforce platform-only communication
+        # Use the locally defined serializer (avoiding broken external import)
         return FreelancerDetailSerializer(obj.freelancer).data
 
 
