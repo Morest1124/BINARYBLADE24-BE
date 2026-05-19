@@ -6,7 +6,7 @@ class UserMinimalSerializer(serializers.ModelSerializer):
     """Minimal user info for message display"""
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile_picture']
 
 class FileAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
