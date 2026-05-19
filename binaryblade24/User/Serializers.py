@@ -36,7 +36,7 @@ class FreelancerDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'avg_rating']
+        fields = ['id', 'username', 'first_name', 'last_name', 'avg_rating', 'profile_picture']
 
     def get_avg_rating(self, obj):
         """Get average rating from user profile."""
@@ -249,6 +249,7 @@ class PublicUserProfileSerializer(serializers.ModelSerializer):
     active_projects_count = serializers.SerializerMethodField()
     portfolio = serializers.SerializerMethodField()
     total_projects_created = serializers.SerializerMethodField()
+    total_earnings = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -258,7 +259,7 @@ class PublicUserProfileSerializer(serializers.ModelSerializer):
             'bio', 'skills', 'hourly_rate', 'level', 'availability', 'avg_rating',
             'roles',
             'completed_projects', 'active_projects', 'active_projects_count',
-            'portfolio', 'total_projects_created',
+            'portfolio', 'total_projects_created', 'total_earnings',
         ]
 
     def _get_profile(self, obj):
@@ -365,3 +366,12 @@ class PublicUserProfileSerializer(serializers.ModelSerializer):
     def get_total_projects_created(self, obj):
         from Project.models import Project
         return Project.objects.filter(client=obj).count()
+
+    def get_total_earnings(self, obj):
+        """Calculate total earnings from completed order items."""
+        from Order.models import OrderItem
+        from django.db.models import Sum
+        return OrderItem.objects.filter(
+            freelancer=obj,
+            order__status='COMPLETED'
+        ).aggregate(total=Sum('final_price'))['total'] or 0.0

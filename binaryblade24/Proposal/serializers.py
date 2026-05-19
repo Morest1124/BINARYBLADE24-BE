@@ -39,7 +39,7 @@ class FreelancerDetailSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
+        fields = ['id', 'username', 'first_name', 'last_name', 'profile_picture']
 
 
 class ProjectNestedSerializer(serializers.ModelSerializer):
