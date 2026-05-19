@@ -168,6 +168,7 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class NotificationPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreferences
