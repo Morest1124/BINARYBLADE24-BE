@@ -80,7 +80,7 @@ class UserAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user_data = UserSerializer(request.user).data
+        user_data = UserSerializer(request.user, context={'request': request}).data
         # Add profile address if profile exists
         try:
             user_data['address'] = request.user.profile.address or ''
@@ -97,7 +97,7 @@ class UserAccountView(APIView):
         if isinstance(address, list) and len(address) > 0:
             address = address[0]
 
-        serializer = UserSerializer(request.user, data=data, partial=True)
+        serializer = UserSerializer(request.user, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             

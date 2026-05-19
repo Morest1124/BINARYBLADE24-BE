@@ -132,11 +132,14 @@ class UserSerializer(serializers.ModelSerializer):
         queryset=Role.objects.all(),
         required=False
     )
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = ('id', 'username', 'first_name', 'last_name', 'email', 'password', 'profile', 'identity_number', 'profile_picture', 'roles', 'date_joined', 'last_login', 'country_origin', 'phone_number', 'phone_country_code')
         read_only_fields = ('id', 'date_joined', 'last_login')
+
+
 
     def create(self, validated_data):
         profile_data = validated_data.pop('profile', None)

@@ -70,7 +70,7 @@ class LoginView(APIView):
         response_data = {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'roles': user_roles
         }
         
@@ -123,7 +123,7 @@ class LoginWithRoleView(APIView):
         response_data = {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'roles': [role_name]
         }
         
@@ -150,7 +150,7 @@ class RegisterView(APIView):
                 if user.roles.exists():
                     refresh['role'] = user.roles.first().name
                 
-                response_data = UserSerializer(user).data
+                response_data = UserSerializer(user, context={'request': request}).data
                 response_data['refresh'] = str(refresh)
                 response_data['access'] = str(refresh.access_token)
                 
@@ -180,7 +180,7 @@ class UserListView(APIView):
 
     def get(self, request, format=None):
         users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
+        serializer = UserSerializer(users, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -192,13 +192,13 @@ class UserDetailView(APIView):
 
     def get(self, request, pk, format=None):
         user = get_object_or_404(User, pk=pk)
-        serializer = UserSerializer(user)
+        serializer = UserSerializer(user, context={'request': request})
         return Response(serializer.data)
 
     def patch(self, request, pk, format=None):
         user = get_object_or_404(User, pk=pk)
         self.check_object_permissions(request, user)
-        serializer = UserSerializer(user, data=request.data, partial=True)
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -245,7 +245,7 @@ class AddFreelancerRoleView(APIView):
         # Add the roles to the user
         user.roles.add(freelancer_role, client_role)
         
-        serializer = UserSerializer(user)
+        serializer = UserSerializer(user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -293,7 +293,7 @@ class UserSearchView(APIView):
         # Pagination (Simple limit for now, can use standard DRF pagination)
         # users = users[:20] 
 
-        serializer = UserSerializer(users, many=True)
+        serializer = UserSerializer(users, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -580,7 +580,7 @@ class GlobalSearchView(APIView):
                 users = users.order_by('-date_joined')
             
             user_limit = 20 if search_type == 'all' else 50
-            results['freelancers'] = UserSerializer(users[:user_limit], many=True).data
+            results['freelancers'] = UserSerializer(users[:user_limit], many=True, context={'request': request}).data
 
         # ---------------------------------------------------------
         # 2. SEARCH PROJECTS (if type is 'all' or 'projects')
