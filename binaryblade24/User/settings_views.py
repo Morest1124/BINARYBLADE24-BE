@@ -8,9 +8,7 @@ from .Serializers import (
     UserPreferencesSerializer
 )
 from .models import NotificationPreferences, UserPreferences
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from .utils import get_target_user
 
 
 class ChangePasswordView(APIView):
@@ -44,12 +42,14 @@ class NotificationPreferencesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        preferences, created = NotificationPreferences.objects.get_or_create(user=request.user)
+        target_user = get_target_user(request)
+        preferences, created = NotificationPreferences.objects.get_or_create(user=target_user)
         serializer = NotificationPreferencesSerializer(preferences)
         return Response(serializer.data)
 
     def put(self, request):
-        preferences, created = NotificationPreferences.objects.get_or_create(user=request.user)
+        target_user = get_target_user(request)
+        preferences, created = NotificationPreferences.objects.get_or_create(user=target_user)
         serializer = NotificationPreferencesSerializer(preferences, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -62,12 +62,14 @@ class UserPreferencesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        preferences, created = UserPreferences.objects.get_or_create(user=request.user)
+        target_user = get_target_user(request)
+        preferences, created = UserPreferences.objects.get_or_create(user=target_user)
         serializer = UserPreferencesSerializer(preferences)
         return Response(serializer.data)
 
     def put(self, request):
-        preferences, created = UserPreferences.objects.get_or_create(user=request.user)
+        target_user = get_target_user(request)
+        preferences, created = UserPreferences.objects.get_or_create(user=target_user)
         serializer = UserPreferencesSerializer(preferences, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -80,15 +82,17 @@ class UserAccountView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user_data = UserSerializer(request.user, context={'request': request}).data
+        target_user = get_target_user(request)
+        user_data = UserSerializer(target_user, context={'request': request}).data
         # Add profile address if profile exists
         try:
-            user_data['address'] = request.user.profile.address or ''
+            user_data['address'] = target_user.profile.address or ''
         except:
             user_data['address'] = ''
         return Response(user_data)
 
     def put(self, request):
+        target_user = get_target_user(request)
         # request.data might be an immutable QueryDict if multipart/form-data
         data = request.data.copy() if hasattr(request.data, 'copy') else request.data
         address = data.pop('address', None)
@@ -97,14 +101,14 @@ class UserAccountView(APIView):
         if isinstance(address, list) and len(address) > 0:
             address = address[0]
 
-        serializer = UserSerializer(request.user, data=data, partial=True, context={'request': request})
+        serializer = UserSerializer(target_user, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             
             # Update profile address if provided
             if address is not None:
                 try:
-                    profile = request.user.profile
+                    profile = target_user.profile
                     profile.address = address
                     profile.save()
                 except:
@@ -113,7 +117,7 @@ class UserAccountView(APIView):
             # Return updated data including address
             response_data = serializer.data
             try:
-                response_data['address'] = request.user.profile.address or ''
+                response_data['address'] = target_user.profile.address or ''
             except:
                 response_data['address'] = ''
             return Response(response_data)

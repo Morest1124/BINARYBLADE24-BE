@@ -11,6 +11,9 @@ from rest_framework.permissions import IsAuthenticated
 from .models import OTPCode
 
 
+from .utils import get_target_user
+
+
 def generate_otp(length=6):
     """Generate a random numeric OTP code."""
     return ''.join(random.choices(string.digits, k=length))
@@ -148,7 +151,8 @@ class VerificationStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = get_target_user(request)
         return Response({
-            'is_email_verified': request.user.is_email_verified,
-            'is_phone_verified': request.user.is_phone_verified,
+            'is_email_verified': user.is_email_verified,
+            'is_phone_verified': user.is_phone_verified,
         })

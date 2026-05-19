@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 User = get_user_model()
+from .utils import get_target_user
 
 
 class DeactivateAccountView(APIView):
@@ -82,7 +83,7 @@ class AccountStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
+        user = get_target_user(request)
         
         status_info = {
             'is_active': user.is_active,

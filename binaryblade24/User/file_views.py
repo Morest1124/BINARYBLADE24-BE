@@ -9,6 +9,7 @@ import os
 
 from .models import FileAttachment
 from utils.file_utils import validate_file, format_file_size
+from .utils import get_target_user
 
 class FileUploadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -35,8 +36,9 @@ class FileUploadView(APIView):
         description = request.data.get('description', '')
 
         try:
+            target_user = get_target_user(request)
             attachment = FileAttachment.objects.create(
-                user=request.user,
+                user=target_user,
                 file=file_obj,
                 category=usage_category,
                 file_type=detected_file_type,
@@ -64,7 +66,8 @@ class FileListView(APIView):
 
     def get(self, request, *args, **kwargs):
         category = request.query_params.get('category')
-        files = FileAttachment.objects.filter(user=request.user).order_by('-uploaded_at')
+        target_user = get_target_user(request)
+        files = FileAttachment.objects.filter(user=target_user).order_by('-uploaded_at')
         
         if category:
             files = files.filter(category=category)
@@ -88,7 +91,11 @@ class FileDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk, *args, **kwargs):
-        file_attachment = get_object_or_404(FileAttachment, pk=pk, user=request.user)
+        file_attachment = get_object_or_404(FileAttachment, pk=pk)
+        # Check permissions: owner or admin
+        if file_attachment.user != request.user and not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
         file_attachment.file.delete()  # Delete actual file
         file_attachment.delete()       # Delete DB record
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -97,7 +104,11 @@ class FileDownloadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk, *args, **kwargs):
-        file_attachment = get_object_or_404(FileAttachment, pk=pk, user=request.user)
+        file_attachment = get_object_or_404(FileAttachment, pk=pk)
+        # Check permissions: owner or admin
+        if file_attachment.user != request.user and not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
         file_path = file_attachment.file.path
         
         if os.path.exists(file_path):
