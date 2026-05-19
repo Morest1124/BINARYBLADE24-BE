@@ -183,7 +183,17 @@ SIMPLE_JWT = {
 
 # This setting has precedence over CORS_ALLOWED_ORIGINS. Since we want explicit control, 
 # we rely on CORS_ALLOWED_ORIGINS and ensure CORS_ALLOW_ALL_ORIGINS is NOT True.
-CORS_ALLOW_ALL_ORIGINS = True # Enabled for local development to fix CORS errors
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        'https://binaryblade2411.pythonanywhere.com',
+        'https://morestburawa24.pythonanywhere.com',
+        'https://binaryblade24.vercel.app/',
+        
+        # Add your production frontend domain here (e.g., Vercel, Netlify, or your custom domain)
+    ]
 
 # CORS_ALLOWED_ORIGINS is loaded from environment, defaulting to localhost:3000
 # Add your production frontend URLs (e.g., Vercel) to your CORS_ALLOWED_ORIGINS env variable!
