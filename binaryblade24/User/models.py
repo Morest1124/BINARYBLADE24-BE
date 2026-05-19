@@ -140,6 +140,7 @@ class Profile(models.Model):
     wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     #         validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]),
     avatar = models.ImageField(blank=True)
+    show_earnings = models.BooleanField(default=True, help_text="Determine if earnings are shown on public profile")
     
     class SkillLevel(models.TextChoices):
         BEGINNER = 'beginner', 'Beginner'
