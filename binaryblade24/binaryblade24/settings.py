@@ -87,6 +87,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='morestburawa05@gmail.com')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = f"BinaryBlade24 <{EMAIL_HOST_USER}>"
+# This line safely grabs the password from PythonAnywhere's setup or a .env file
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default=os.environ.get('EMAIL_HOST_PASSWORD', ''))
+
+DEFAULT_FROM_EMAIL = f"BinaryBlade24 <{EMAIL_HOST_USER}>"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -191,7 +195,7 @@ else:
         'https://binaryblade2411.pythonanywhere.com',
         'https://morestburawa24.pythonanywhere.com',
         'https://binaryblade24.vercel.app/',
-        
+
         # Add your production frontend domain here (e.g., Vercel, Netlify, or your custom domain)
     ]
 
